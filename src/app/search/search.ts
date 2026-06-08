@@ -19,12 +19,15 @@ const PRODUCTS = [
 export class SearchComponent {
   query = '';
   selectedProduct = '';
+  searchType: 'text' | 'vector' = 'text';
   products = PRODUCTS;
 
   results = signal<ReleaseNote[]>([]);
   loading = signal(false);
   error = signal('');
   searched = signal(false);
+  activeSearchType = signal<'text' | 'vector'>('text');
+  summary = signal<string | null>(null);
 
   constructor(private api: ApiService) {}
 
@@ -33,10 +36,13 @@ export class SearchComponent {
     this.loading.set(true);
     this.error.set('');
     this.searched.set(true);
+    this.summary.set(null);
 
-    this.api.search(this.query, this.selectedProduct || undefined).subscribe({
+    this.api.search(this.query, this.selectedProduct || undefined, this.searchType).subscribe({
       next: (res) => {
         this.results.set(res.results);
+        this.activeSearchType.set(res.searchType ?? this.searchType);
+        this.summary.set(res.summary ?? null);
         this.loading.set(false);
       },
       error: (err) => {

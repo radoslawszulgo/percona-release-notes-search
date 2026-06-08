@@ -53,23 +53,52 @@ function parseTicketItems(lines) {
   return items;
 }
 
-function parseSectionParagraphs(lines) {
-  const paragraphs = [];
-  let current = [];
+function parseReleaseHighlights(lines) {
+  const highlights = [];
+  let currentTitle = null;
+  let currentLines = [];
+
+  const flush = () => {
+    if (currentTitle !== null) {
+      const text = currentLines
+        .join('\n')
+        .split(/\n\n+/)
+        .map((p) => p.replace(/\n/g, ' ').trim())
+        .filter(Boolean)
+        .join('\n\n');
+      highlights.push({ title: currentTitle, content: text });
+    }
+  };
 
   for (const line of lines) {
-    if (line.startsWith('#')) break;
-    if (line.trim() === '') {
-      if (current.length) {
-        paragraphs.push(current.join(' ').trim());
-        current = [];
-      }
-    } else {
-      current.push(line.trim());
+    if (/^#{2}\s/.test(line)) break; // hit next H2 section
+    if (/^#{3}\s+(.+)/.test(line)) {
+      flush();
+      currentTitle = line.replace(/^#{3}\s+/, '').trim();
+      currentLines = [];
+    } else if (currentTitle !== null) {
+      currentLines.push(line);
     }
   }
-  if (current.length) paragraphs.push(current.join(' ').trim());
-  return paragraphs.filter(Boolean);
+  flush();
+
+  // If no H3 subsections found, fall back to plain paragraphs
+  if (!highlights.length) {
+    const paragraphs = [];
+    let current = [];
+    for (const line of lines) {
+      if (line.startsWith('#')) break;
+      if (line.trim() === '') {
+        if (current.length) { paragraphs.push(current.join(' ').trim()); current = []; }
+      } else {
+        current.push(line.trim());
+      }
+    }
+    if (current.length) paragraphs.push(current.join(' ').trim());
+    return paragraphs.filter(Boolean).map((p) => ({ title: null, content: p }));
+  }
+
+  return highlights;
 }
 
 export function parseReleaseNote(filename, markdownContent) {
@@ -113,7 +142,7 @@ export function parseReleaseNote(filename, markdownContent) {
 
   for (const [key, linesArr] of Object.entries(sectionLines)) {
     if (key === 'releaseHighlights') {
-      sections[key] = parseSectionParagraphs(linesArr);
+      sections[key] = parseReleaseHighlights(linesArr);
     } else {
       sections[key] = parseTicketItems(linesArr);
     }

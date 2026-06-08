@@ -13,6 +13,9 @@
 #   docker compose -f docker-compose.percona.yml up -d
 #   # MongoDB is available at mongodb://root:password@localhost:27017
 #
+# Development (live reload):
+#   docker compose -f docker-compose.percona.yml watch
+#
 # ── PLACEHOLDERS ──────────────────────────────────────────────────────────────
 # Replace the two PLACEHOLDER values below once the Percona mongot image is
 # published to a registry:
@@ -84,6 +87,33 @@ services:
       retries: 5
       start_period: 20s
 
+  # ── Ollama (embedding model) ────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-percona
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Pulls required models once on first startup
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: ollama-init-percona
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c", "ollama pull nomic-embed-text && ollama pull llama3.2"]
+    restart: "no"
+
   # ── Frontend ───────────────────────────────────────────────────────────────
   app:
     build:
@@ -94,6 +124,16 @@ services:
       - "8080:80"
     depends_on:
       - api
+    develop:
+      watch:
+        - action: rebuild
+          path: ./src
+        - action: rebuild
+          path: ./public
+        - action: rebuild
+          path: ./angular.json
+        - action: rebuild
+          path: ./package.json
 
   # ── Backend API ────────────────────────────────────────────────────────────
   api:
@@ -106,12 +146,25 @@ services:
       MONGODB_DB: release_notes
       MONGODB_COLLECTION: documents
       PORT: "3000"
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_EMBED_MODEL: nomic-embed-text
+      OLLAMA_CHAT_MODEL: llama3.2
     ports:
       - "3000:3000"
     depends_on:
       percona-mongod:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./server/src
+          target: /app/src
+        - action: rebuild
+          path: ./server/package.json
 
 volumes:
   percona_data:
   percona_mongot_data:
+  ollama_data:

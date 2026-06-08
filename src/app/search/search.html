@@ -13,6 +13,20 @@
         <option [value]="p">{{ p }}</option>
       }
     </select>
+    <div class="search-type-toggle" role="group" aria-label="Search type">
+      <button
+        class="search-type-toggle__btn"
+        [class.search-type-toggle__btn--active]="searchType === 'text'"
+        (click)="searchType = 'text'"
+        type="button"
+      >Text</button>
+      <button
+        class="search-type-toggle__btn"
+        [class.search-type-toggle__btn--active]="searchType === 'vector'"
+        (click)="searchType = 'vector'"
+        type="button"
+      >Vector</button>
+    </div>
     <button class="search-bar__btn" (click)="search()" [disabled]="loading()">
       @if (loading()) { Searching… } @else { Search }
     </button>
@@ -26,7 +40,21 @@
     @if (results().length === 0) {
       <p class="search-empty">No results found for "{{ query }}".</p>
     } @else {
-      <p class="search-count">{{ results().length }} result(s)</p>
+      <p class="search-count">
+        {{ results().length }} result(s)
+        <span class="search-count__type" [class.search-count__type--vector]="activeSearchType() === 'vector'">
+          {{ activeSearchType() === 'vector' ? 'vector' : 'text' }} search
+        </span>
+      </p>
+      @if (summary()) {
+        <div class="ai-summary">
+          <div class="ai-summary__header">
+            <span class="ai-summary__icon">✦</span>
+            <span class="ai-summary__label">AI Summary</span>
+          </div>
+          <p class="ai-summary__text">{{ summary() }}</p>
+        </div>
+      }
       <ul class="results-list">
         @for (doc of results(); track doc._id) {
           <li class="result-card" [class.result-card--expanded]="expandedId() === doc._id">
@@ -47,7 +75,10 @@
                   <h4>Release Highlights</h4>
                   <ul class="item-list">
                     @for (h of doc.releaseHighlights; track $index) {
-                      <li>{{ h }}</li>
+                      <li>
+                        @if (h.title) { <strong>{{ h.title }}</strong><br> }
+                        {{ h.content }}
+                      </li>
                     }
                   </ul>
                 }

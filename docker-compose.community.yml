@@ -11,6 +11,9 @@
 #
 # Usage:
 #   docker compose -f docker-compose.community.yml up -d
+#
+# Development (live reload):
+#   docker compose -f docker-compose.community.yml watch
 
 services:
   # ── mongod ─────────────────────────────────────────────────────────────────
@@ -77,6 +80,37 @@ services:
     depends_on:
       - mongod
 
+  # ── Ollama (embedding model) ────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-community
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - search-community
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Pulls required models once on first startup
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: ollama-init-community
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    networks:
+      - search-community
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c", "ollama pull nomic-embed-text && ollama pull llama3.2"]
+    restart: "no"
+
   # ── Backend API ─────────────────────────────────────────────────────────────
   api:
     build:
@@ -88,6 +122,9 @@ services:
       MONGODB_DB: release_notes
       MONGODB_COLLECTION: documents
       PORT: "3000"
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_EMBED_MODEL: nomic-embed-text
+      OLLAMA_CHAT_MODEL: llama3.2
     ports:
       - "3000:3000"
     networks:
@@ -95,6 +132,17 @@ services:
     depends_on:
       mongod:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
+    develop:
+      watch:
+        # Sync source files into the running container; the process restarts automatically.
+        - action: sync+restart
+          path: ./server/src
+          target: /app/src
+        # Rebuild the image when dependencies change.
+        - action: rebuild
+          path: ./server/package.json
 
   # ── Frontend ────────────────────────────────────────────────────────────────
   app:
@@ -108,10 +156,22 @@ services:
       - search-community
     depends_on:
       - api
+    develop:
+      watch:
+        # Angular must be compiled — rebuild the image on any source change.
+        - action: rebuild
+          path: ./src
+        - action: rebuild
+          path: ./public
+        - action: rebuild
+          path: ./angular.json
+        - action: rebuild
+          path: ./package.json
 
 volumes:
   mongod_data:
   mongot_data:
+  ollama_data:
 
 networks:
   search-community:

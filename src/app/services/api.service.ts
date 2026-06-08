@@ -9,7 +9,7 @@ export interface ReleaseNote {
   product: string;
   version: string;
   uploadedAt: string;
-  releaseHighlights: string[];
+  releaseHighlights: { title: string | null; content: string }[];
   newFeatures: { ticket: string; description: string }[];
   improvements: { ticket: string; description: string }[];
   bugFixes: { ticket: string; description: string }[];
@@ -18,6 +18,22 @@ export interface ReleaseNote {
 
 export interface SearchResponse {
   results: ReleaseNote[];
+  searchType?: 'text' | 'vector';
+  summary?: string;
+}
+
+export interface EmbeddingStatus {
+  total: number;
+  embedded: number;
+  missing: number;
+  ollamaAvailable: boolean;
+}
+
+export interface EmbeddingUpdateResponse {
+  updated: number;
+  failed: number;
+  total: number;
+  message?: string;
 }
 
 export interface UploadResult {
@@ -42,8 +58,17 @@ export class ApiService {
 
   constructor(private http: HttpClient) {}
 
-  search(query: string, product?: string): Observable<SearchResponse> {
-    return this.http.post<SearchResponse>(`${this.base}/api/search`, { query, product });
+  search(query: string, product?: string, type: 'text' | 'vector' = 'text'): Observable<SearchResponse> {
+    return this.http.post<SearchResponse>(`${this.base}/api/search`, { query, product, type });
+  }
+
+  embeddingStatus(): Observable<EmbeddingStatus> {
+    return this.http.get<EmbeddingStatus>(`${this.base}/api/embeddings/status`);
+  }
+
+  updateEmbeddings(missingOnly = false): Observable<EmbeddingUpdateResponse> {
+    const params = missingOnly ? '?missing=true' : '';
+    return this.http.post<EmbeddingUpdateResponse>(`${this.base}/api/embeddings/update${params}`, {});
   }
 
   upload(files: File[]): Observable<UploadResponse> {
