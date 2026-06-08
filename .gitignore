@@ -14,6 +14,14 @@
 
 # Environment files
 /.env
+/server/.env
+
+# Secret files (passwords, keys) — never commit these
+/secrets/
+/pwfile
+/keyfile
+/server/.env
+/server/node_modules/
 
 # Angular CLI and build artefacts
 /.angular-cli.json

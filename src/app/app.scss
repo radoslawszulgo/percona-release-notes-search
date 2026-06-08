@@ -40,6 +40,31 @@
   flex-shrink: 0;
 }
 
+.app-nav {
+  display: flex;
+  gap: 0.25rem;
+
+  &__link {
+    color: color-mix(in srgb, #{$color-primary-white} 70%, transparent);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+    border-radius: 5px;
+    transition: color 0.15s, background 0.15s;
+
+    &:hover {
+      color: $color-primary-white;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    &--active {
+      color: $color-primary-white;
+      background: rgba(255, 255, 255, 0.12);
+    }
+  }
+}
+
 .app-header__tech-badge {
   background-color: $color-tech-mongodb;
   color: $color-primary-white;

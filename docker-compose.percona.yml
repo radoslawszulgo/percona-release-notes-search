@@ -1,0 +1,117 @@
+# Percona Server for MongoDB 8.3 + Percona mongot
+#
+# mongot runs as a sidecar container alongside mongod.
+# mongod is told where mongot lives via the searchIndexManagementHostAndPort
+# server parameter; mongot connects back to mongod on port 27017.
+#
+# ┌──────────────────┐  searchIndexManagement  ┌──────────────────┐
+# │  percona-mongod  │ ──────────────────────► │  percona-mongot  │
+# │  :27017          │ ◄────── mongot client ── │  :27027          │
+# └──────────────────┘                         └──────────────────┘
+#
+# Usage:
+#   docker compose -f docker-compose.percona.yml up -d
+#   # MongoDB is available at mongodb://root:password@localhost:27017
+#
+# ── PLACEHOLDERS ──────────────────────────────────────────────────────────────
+# Replace the two PLACEHOLDER values below once the Percona mongot image is
+# published to a registry:
+#
+#   percona-mongot:
+#     image: PLACEHOLDER_REGISTRY/PLACEHOLDER_IMAGE:PLACEHOLDER_TAG
+#
+# Example (adjust to the actual registry/name/tag):
+#   image: percona/percona-mongot:1.0.0
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  percona-mongod:
+    image: percona/percona-server-mongodb:8.3
+    container_name: percona-rn-search-mongod
+    restart: unless-stopped
+    command:
+      - mongod
+      - "--bind_ip_all"
+      # Tell mongod where mongot is listening (host:port inside the compose network)
+      - "--setParameter"
+      - "searchIndexManagementHostAndPort=percona-mongot:27027"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    ports:
+      - "27017:27017"
+    volumes:
+      - percona_data:/data/db
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - "--eval"
+        - "db.adminCommand('ping')"
+        - "--username"
+        - "root"
+        - "--password"
+        - "password"
+        - "--authenticationDatabase"
+        - "admin"
+        - "--quiet"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      percona-mongot:
+        condition: service_started
+
+  percona-mongot:
+    # ── UPDATE THIS IMAGE ONCE THE PERCONA MONGOT IMAGE IS PUBLISHED ──────────
+    image: PLACEHOLDER_REGISTRY/PLACEHOLDER_IMAGE:PLACEHOLDER_TAG
+    # ─────────────────────────────────────────────────────────────────────────
+    container_name: percona-rn-search-mongot
+    restart: unless-stopped
+    environment:
+      # URI mongot uses to connect back to mongod
+      MONGOT_MONGOD_URI: mongodb://root:password@percona-mongod:27017/?authSource=admin
+    ports:
+      # Expose mongot management port for debugging (optional)
+      - "27027:27027"
+    volumes:
+      - percona_mongot_data:/var/lib/mongot
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:27027/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+    container_name: percona-rn-search-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+  # ── Backend API ────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./server
+    container_name: percona-rn-search-api
+    restart: unless-stopped
+    environment:
+      MONGODB_URI: mongodb://root:password@percona-mongod:27017
+      MONGODB_DB: release_notes
+      MONGODB_COLLECTION: documents
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      percona-mongod:
+        condition: service_healthy
+
+volumes:
+  percona_data:
+  percona_mongot_data:

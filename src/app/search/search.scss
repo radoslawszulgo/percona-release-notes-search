@@ -1,0 +1,193 @@
+@use '../../styles/colors' as *;
+
+.search-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.search-bar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+
+  &__input {
+    flex: 1 1 300px;
+    padding: 0.65rem 1rem;
+    border: 1.5px solid $color-border;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: $color-surface;
+    color: $color-text;
+    outline: none;
+    transition: border-color 0.15s;
+
+    &:focus {
+      border-color: $color-primary;
+    }
+
+    &::placeholder {
+      color: $color-text-muted;
+    }
+  }
+
+  &__filter {
+    padding: 0.65rem 0.75rem;
+    border: 1.5px solid $color-border;
+    border-radius: 6px;
+    background: $color-surface;
+    color: $color-text;
+    font-size: 0.9rem;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: $color-primary;
+    }
+  }
+
+  &__btn {
+    padding: 0.65rem 1.5rem;
+    background: $color-primary;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover:not(:disabled) {
+      background: $color-primary-dark;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.search-error {
+  margin-top: 1.25rem;
+  color: $color-danger;
+  font-size: 0.9rem;
+}
+
+.search-empty,
+.search-count {
+  margin-top: 1.25rem;
+  color: $color-text-muted;
+  font-size: 0.9rem;
+}
+
+.results-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.result-card {
+  border: 1.5px solid $color-border;
+  border-radius: 8px;
+  overflow: hidden;
+  background: $color-surface;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover,
+  &--expanded {
+    border-color: $color-primary;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  &__header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: $color-text;
+
+    &:hover {
+      background: rgba($color-primary, 0.04);
+    }
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  &__product {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  &__version {
+    font-size: 0.85rem;
+    color: $color-text-muted;
+    font-family: monospace;
+  }
+
+  &__score {
+    font-size: 0.75rem;
+    color: $color-primary;
+    background: rgba($color-primary, 0.1);
+    padding: 0.1rem 0.45rem;
+    border-radius: 10px;
+  }
+
+  &__chevron {
+    color: $color-text-muted;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  &__body {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid $color-border;
+
+    h4 {
+      margin: 1rem 0 0.4rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: $color-primary;
+    }
+  }
+}
+
+.item-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  li {
+    font-size: 0.88rem;
+    color: $color-text;
+    line-height: 1.5;
+  }
+}
+
+.ticket {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: rgba($color-primary, 0.08);
+  color: $color-primary;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  margin-right: 0.35rem;
+}

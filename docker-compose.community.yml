@@ -1,0 +1,118 @@
+# MongoDB Community + mongot (Atlas Search)
+#
+# ┌────────────────────────────┐  gRPC :27028            ┌────────────────────────────┐
+# │  mongod.search-community   │ ──────────────────────► │  mongot.search-community   │
+# │  (mongod) :27017           │ ◄── replication sync ── │  query :27028  metrics :9946│
+# └────────────────────────────┘                         └────────────────────────────┘
+#
+# Prerequisites:
+#   Create the password file (mongotUser's password) and lock it down:
+#     cp pwfile.example pwfile && chmod 600 pwfile
+#
+# Usage:
+#   docker compose -f docker-compose.community.yml up -d
+
+services:
+  # ── mongod ─────────────────────────────────────────────────────────────────
+  mongod:
+    image: mongodb/mongodb-community-server:latest
+    container_name: mongod-community
+    hostname: mongod.search-community
+    command: >-
+      mongod
+      --config /etc/mongod.conf
+      --replSetMember=mongod.search-community:27017
+    environment:
+      MONGODB_INITDB_ROOT_USERNAME: root
+      MONGODB_INITDB_ROOT_PASSWORD: password
+    ports:
+      - "27017:27017"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - mongod_data:/data/db
+      - ./mongod.conf:/etc/mongod.conf:ro
+      - ./keyfile:/etc/mongod-keyfile:ro
+      - ./init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh:ro
+    networks:
+      - search-community
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - "--eval"
+        - "db.adminCommand('ping')"
+        - "--username"
+        - "root"
+        - "--password"
+        - "password"
+        - "--authenticationDatabase"
+        - "admin"
+        - "--quiet"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── mongot ─────────────────────────────────────────────────────────────────
+  mongot:
+    image: mongodb/mongodb-community-search:latest
+    container_name: mongot-community
+    hostname: mongot.search-community
+    entrypoint:
+      - /mongot-community/mongot
+      - --config=/mongot-community/config.default.yml
+      - --internalListAllIndexesForTesting=true
+    volumes:
+      - mongot_data:/data/mongot
+      - ./mongot.conf:/mongot-community/config.default.yml
+      - ./pwfile:/mongot-community/pwfile:ro
+      # pwfile MUST be chmod 600 on the host — mongot rejects world-readable files
+    ports:
+      - "27028:27028"  # gRPC query server
+      - "9946:9946"    # Metrics
+      # healthCheck :8080 is internal only — not exposed to avoid conflict with the app container
+    networks:
+      - search-community
+    depends_on:
+      - mongod
+
+  # ── Backend API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./server
+    container_name: percona-rn-search-api-community
+    restart: unless-stopped
+    environment:
+      MONGODB_URI: mongodb://root:password@mongod.search-community:27017
+      MONGODB_DB: release_notes
+      MONGODB_COLLECTION: documents
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    networks:
+      - search-community
+    depends_on:
+      mongod:
+        condition: service_healthy
+
+  # ── Frontend ────────────────────────────────────────────────────────────────
+  app:
+    build:
+      context: .
+    container_name: percona-rn-search-app-community
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - search-community
+    depends_on:
+      - api
+
+volumes:
+  mongod_data:
+  mongot_data:
+
+networks:
+  search-community:
+    name: search-community
