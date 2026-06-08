@@ -1,0 +1,54 @@
+// =============================================================================
+// Percona Color Style Guide
+// =============================================================================
+// Primary Colors
+// These are the main brand colors. The purple and the yellow are loud.
+// Use them sparingly — highlights, headlines, accents.
+// Black and white give the canvas.
+// =============================================================================
+
+// Primary brand palette
+$color-primary-purple:  #653df4; // PMS 2725 C — main brand purple
+$color-primary-white:   #ffffff;
+$color-primary-black:   #282727; // PMS 426 C  — near-black canvas
+$color-primary-yellow:  #f6fe54; // PMS 3935 C — accent yellow
+
+// =============================================================================
+// Technology Colors
+// =============================================================================
+
+$color-tech-mongodb:    #1fa23a; // PMS 3529 C — MongoDB green
+$color-tech-mysql:      #e65a15; // PMS 6021 C — MySQL orange
+$color-tech-postgresql: #005ed6; // PMS 2387 C — PostgreSQL blue
+$color-tech-redis:      #d6362a; // PMS 179 C  — Redis red
+$color-tech-kubernetes: #2aa6df; // PMS 6120 C — Kubernetes sky blue
+$color-tech-valkey:     #a83fef; // PMS 2582 C — Valkey violet
+
+// =============================================================================
+// CSS Custom Properties (for online/UI use)
+// =============================================================================
+
+:root {
+  // Primary
+  --color-primary-purple:  #{$color-primary-purple};
+  --color-primary-white:   #{$color-primary-white};
+  --color-primary-black:   #{$color-primary-black};
+  --color-primary-yellow:  #{$color-primary-yellow};
+
+  // Technology
+  --color-tech-mongodb:    #{$color-tech-mongodb};
+  --color-tech-mysql:      #{$color-tech-mysql};
+  --color-tech-postgresql: #{$color-tech-postgresql};
+  --color-tech-redis:      #{$color-tech-redis};
+  --color-tech-kubernetes: #{$color-tech-kubernetes};
+  --color-tech-valkey:     #{$color-tech-valkey};
+
+  // Tints — 10% and 20% (for UI elements only, never for logomarks or typography)
+  --color-primary-purple-10: color-mix(in srgb, #{$color-primary-purple} 10%, transparent);
+  --color-primary-purple-20: color-mix(in srgb, #{$color-primary-purple} 20%, transparent);
+  --color-primary-yellow-10: color-mix(in srgb, #{$color-primary-yellow} 10%, transparent);
+  --color-primary-yellow-20: color-mix(in srgb, #{$color-primary-yellow} 20%, transparent);
+
+  // Active technology theme (MongoDB)
+  --color-tech-active:     #{$color-tech-mongodb};
+}

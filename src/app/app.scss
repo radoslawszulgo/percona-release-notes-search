@@ -1,0 +1,78 @@
+@use '../styles/colors' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+// Header
+.app-header {
+  background-color: $color-primary-black;
+  border-bottom: 3px solid $color-tech-mongodb;
+  padding: 0 1.5rem;
+}
+
+.app-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 3.5rem;
+}
+
+.app-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: $color-primary-white;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.app-header__brand-dot {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background-color: $color-tech-mongodb;
+  flex-shrink: 0;
+}
+
+.app-header__tech-badge {
+  background-color: $color-tech-mongodb;
+  color: $color-primary-white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.25rem;
+}
+
+// Main content
+.app-main {
+  flex: 1;
+  padding: 2rem 1.5rem;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+// Footer
+.app-footer {
+  background-color: $color-primary-black;
+  color: color-mix(in srgb, #{$color-primary-white} 60%, transparent);
+  text-align: center;
+  padding: 1rem 1.5rem;
+  font-size: 0.875rem;
+
+  p {
+    margin: 0;
+  }
+
+  strong {
+    color: $color-tech-mongodb;
+  }
+}
