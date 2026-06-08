@@ -52,3 +52,16 @@ $color-tech-valkey:     #a83fef; // PMS 2582 C — Valkey violet
   // Active technology theme (MongoDB)
   --color-tech-active:     #{$color-tech-mongodb};
 }
+
+// =============================================================================
+// Semantic UI aliases (consumed by components via @use '../../styles/colors')
+// =============================================================================
+
+$color-primary:      $color-primary-purple;
+$color-primary-dark: #4f2fd4;
+$color-text:         $color-primary-black;
+$color-text-muted:   #6b7280;
+$color-surface:      #ffffff;
+$color-border:       #e2e4e9;
+$color-danger:       #dc2626;
+$color-success:      #16a34a;

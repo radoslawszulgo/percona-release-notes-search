@@ -1,0 +1,48 @@
+<section class="upload-page">
+  <h2 class="upload-page__title">Upload Release Notes</h2>
+  <p class="upload-page__hint">
+    Drop one or more <code>.md</code> files (e.g. <code>7.0.18-11.md</code>). The product is
+    detected automatically from the file heading.
+  </p>
+
+  <div
+    class="drop-zone"
+    [class.drop-zone--active]="dragging()"
+    [class.drop-zone--busy]="uploading()"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave()"
+    (drop)="onDrop($event)"
+  >
+    @if (uploading()) {
+      <span class="drop-zone__label">Uploading…</span>
+    } @else {
+      <span class="drop-zone__label">
+        Drag &amp; drop <code>.md</code> files here, or
+        <label class="drop-zone__browse">
+          browse
+          <input type="file" accept=".md" multiple (change)="onFileSelect($event)" />
+        </label>
+      </span>
+    }
+  </div>
+
+  @if (error()) {
+    <p class="upload-error">{{ error() }}</p>
+  }
+
+  @if (results().length) {
+    <ul class="upload-results">
+      @for (r of results(); track r.filename) {
+        <li class="upload-result" [class.upload-result--error]="r.error">
+          @if (r.error) {
+            <span class="icon">✗</span>
+            <strong>{{ r.filename }}</strong> — {{ r.error }}
+          } @else {
+            <span class="icon">✓</span>
+            <strong>{{ r.filename }}</strong> — {{ r.product }} v{{ r.version }}
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>
