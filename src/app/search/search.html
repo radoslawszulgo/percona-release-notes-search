@@ -46,6 +46,19 @@
           {{ activeSearchType() === 'vector' ? 'vector' : 'text' }} search
         </span>
       </p>
+      @if (keywords().length) {
+        <div class="search-keywords">
+          <span class="search-keywords__label">Highlighting:</span>
+          @for (kw of keywords(); track kw) {
+            <span class="search-keywords__chip">{{ kw }}</span>
+          }
+        </div>
+      } @else if (keywordsError()) {
+        <div class="search-keywords search-keywords--error">
+          <span class="search-keywords__label">Highlighting:</span>
+          <span class="search-keywords__error">{{ keywordsError() }}</span>
+        </div>
+      }
       @if (summary()) {
         <div class="ai-summary">
           <div class="ai-summary__header">
@@ -53,6 +66,13 @@
             <span class="ai-summary__label">AI Summary</span>
           </div>
           <p class="ai-summary__text">{{ summary() }}</p>
+        </div>
+      }
+      @if (summaryError()) {
+        <div class="ai-summary-error">
+          <span class="ai-summary-error__icon">✦</span>
+          <span class="ai-summary-error__label">AI Summary unavailable</span>
+          <span class="ai-summary-error__reason">{{ summaryError() }}</span>
         </div>
       }
       <ul class="results-list">
@@ -76,8 +96,8 @@
                   <ul class="item-list">
                     @for (h of doc.releaseHighlights; track $index) {
                       <li>
-                        @if (h.title) { <strong>{{ h.title }}</strong><br> }
-                        {{ h.content }}
+                        @if (h.title) { <strong [innerHTML]="highlight(h.title)"></strong><br> }
+                        <span [innerHTML]="highlight(h.content)"></span>
                       </li>
                     }
                   </ul>
@@ -86,7 +106,7 @@
                   <h4>New Features</h4>
                   <ul class="item-list">
                     @for (f of doc.newFeatures; track f.ticket) {
-                      <li><span class="ticket">{{ f.ticket }}</span> {{ f.description }}</li>
+                      <li><span class="ticket">{{ f.ticket }}</span> <span [innerHTML]="highlight(f.description)"></span></li>
                     }
                   </ul>
                 }
@@ -94,7 +114,7 @@
                   <h4>Improvements</h4>
                   <ul class="item-list">
                     @for (i of doc.improvements; track i.ticket) {
-                      <li><span class="ticket">{{ i.ticket }}</span> {{ i.description }}</li>
+                      <li><span class="ticket">{{ i.ticket }}</span> <span [innerHTML]="highlight(i.description)"></span></li>
                     }
                   </ul>
                 }
@@ -102,7 +122,7 @@
                   <h4>Bug Fixes</h4>
                   <ul class="item-list">
                     @for (b of doc.bugFixes; track b.ticket) {
-                      <li><span class="ticket">{{ b.ticket }}</span> {{ b.description }}</li>
+                      <li><span class="ticket">{{ b.ticket }}</span> <span [innerHTML]="highlight(b.description)"></span></li>
                     }
                   </ul>
                 }

@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ApiService, ReleaseNote } from '../services/api.service';
 
 const PRODUCTS = [
@@ -28,8 +29,24 @@ export class SearchComponent {
   searched = signal(false);
   activeSearchType = signal<'text' | 'vector'>('text');
   summary = signal<string | null>(null);
+  summaryError = signal<string | null>(null);
+  keywords = signal<string[]>([]);
+  keywordsError = signal<string | null>(null);
 
-  constructor(private api: ApiService) {}
+  activeQuery = signal('');
+
+  constructor(private api: ApiService, private sanitizer: DomSanitizer) {}
+
+  highlight(text: string): SafeHtml {
+    if (!this.activeQuery().trim()) return text;
+    const kw = this.keywords();
+    const terms = (kw.length ? kw : this.activeQuery().trim().split(/\s+/))
+      .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+      .filter(Boolean);
+    const pattern = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
+    const highlighted = text.replace(pattern, '<mark>$1</mark>');
+    return this.sanitizer.bypassSecurityTrustHtml(highlighted);
+  }
 
   search() {
     if (!this.query.trim()) return;
@@ -37,12 +54,20 @@ export class SearchComponent {
     this.error.set('');
     this.searched.set(true);
     this.summary.set(null);
+    this.summaryError.set(null);
+    this.keywords.set([]);
+    this.keywordsError.set(null);
+    this.activeQuery.set('');
 
     this.api.search(this.query, this.selectedProduct || undefined, this.searchType).subscribe({
       next: (res) => {
         this.results.set(res.results);
         this.activeSearchType.set(res.searchType ?? this.searchType);
         this.summary.set(res.summary ?? null);
+        this.summaryError.set(res.summaryError ?? null);
+        this.keywords.set(res.keywords ?? []);
+        this.keywordsError.set(res.keywordsError ?? null);
+        this.activeQuery.set(this.query);
         this.loading.set(false);
       },
       error: (err) => {

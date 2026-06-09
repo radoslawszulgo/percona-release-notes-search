@@ -8,6 +8,12 @@
       <a class="app-nav__link" routerLink="/search" routerLinkActive="app-nav__link--active">Search</a>
       <a class="app-nav__link" routerLink="/upload" routerLinkActive="app-nav__link--active">Upload</a>
     </nav>
+    <div class="server-status" [class]="'server-status--' + serverStatus()">
+      <span class="server-status__dot"></span>
+      <span class="server-status__label">
+        {{ serverStatus() === 'checking' ? 'Connecting…' : serverStatus() === 'online' ? 'Server online' : 'Server offline' }}
+      </span>
+    </div>
     <span class="app-header__tech-badge">MongoDB</span>
   </div>
 </header>

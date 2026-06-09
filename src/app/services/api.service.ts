@@ -20,6 +20,9 @@ export interface SearchResponse {
   results: ReleaseNote[];
   searchType?: 'text' | 'vector';
   summary?: string;
+  summaryError?: string;
+  keywords?: string[];
+  keywordsError?: string;
 }
 
 export interface EmbeddingStatus {
@@ -57,6 +60,10 @@ export class ApiService {
   private base = environment.apiUrl;
 
   constructor(private http: HttpClient) {}
+
+  health(): Observable<{ status: string }> {
+    return this.http.get<{ status: string }>(`${this.base}/api/health`);
+  }
 
   search(query: string, product?: string, type: 'text' | 'vector' = 'text'): Observable<SearchResponse> {
     return this.http.post<SearchResponse>(`${this.base}/api/search`, { query, product, type });

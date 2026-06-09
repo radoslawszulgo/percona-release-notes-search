@@ -76,6 +76,47 @@
   border-radius: 0.25rem;
 }
 
+// Server status
+.server-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: color-mix(in srgb, #{$color-primary-white} 60%, transparent);
+
+  &__dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+
+  &--checking {
+    color: color-mix(in srgb, #{$color-primary-white} 45%, transparent);
+    .server-status__dot { opacity: 0.5; }
+  }
+
+  &--online {
+    color: #4ade80;
+    .server-status__dot {
+      box-shadow: 0 0 0 0 rgba(#4ade80, 0.6);
+      animation: status-pulse 2s ease-out infinite;
+    }
+  }
+
+  &--offline {
+    color: #f87171;
+  }
+}
+
+@keyframes status-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(#4ade80, 0.5); }
+  70%  { box-shadow: 0 0 0 5px rgba(#4ade80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(#4ade80, 0); }
+}
+
 // Main content
 .app-main {
   flex: 1;

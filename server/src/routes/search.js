@@ -73,7 +73,7 @@ async function textSearch(collection, query, product) {
 // ── AI Summary ────────────────────────────────────────────────────────────────
 
 async function summarizeResults(query, results) {
-  if (results.length === 0) return null;
+  if (results.length === 0) return { summary: null, summaryError: null };
 
   const docs = results.slice(0, 10).map((r) => {
     const lines = [];
@@ -87,7 +87,58 @@ async function summarizeResults(query, results) {
   const prompt = `You are a technical assistant for Percona release notes. A user searched for: "${query}"\n\nHere are the most relevant release notes found:\n\n${docs.join('\n\n')}\n\nWrite a concise, conversational response (3-5 sentences) that directly answers what the user was looking for by highlighting the most relevant findings across these release notes. Focus on what matters most to their query. Do not list every result — synthesize the key insights.`;
 
   try {
-    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+    let res;
+    try {
+      res = await fetch(`${OLLAMA_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: CHAT_MODEL,
+          stream: false,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+    } catch (fetchErr) {
+      const reason = fetchErr?.name === 'TimeoutError'
+        ? `Request to Ollama timed out after 30 s`
+        : `Could not reach Ollama at ${OLLAMA_URL}: ${fetchErr?.message ?? fetchErr}`;
+      return { summary: null, summaryError: reason };
+    }
+
+    if (!res.ok) {
+      return { summary: null, summaryError: `Ollama returned HTTP ${res.status} ${res.statusText}` };
+    }
+
+    const data = await res.json();
+    const content = data.message?.content ?? null;
+    if (!content) {
+      return { summary: null, summaryError: `Ollama responded but returned no content (model: ${CHAT_MODEL})` };
+    }
+    return { summary: content, summaryError: null };
+  } catch (err) {
+    return { summary: null, summaryError: `Unexpected error generating AI summary: ${err?.message ?? err}` };
+  }
+}
+
+// ── Keyword extraction ────────────────────────────────────────────────────────
+
+async function extractKeywords(query) {
+  const prompt = `Extract keywords from this search query to highlight in release notes. Follow these rules:
+1. Expand known abbreviations and acronyms to their full names (e.g. "AL2023" or "AL23" → "amazon linux 2023", "PSMDB" → "percona server for mongodb", "PXC" → "percona xtradb cluster", "PBM" → "percona backup for mongodb", "PMM" → "percona monitoring and management", "PS" → "percona server", "PG" → "postgresql", "k8s" → "kubernetes").
+2. Include both the abbreviation and its expansion as separate entries.
+3. Include version identifiers, product names, and meaningful technical terms.
+4. Ignore generic question words like "what", "has", "in", "the", "changed", "is", "are".
+5. Return ONLY a JSON array of lowercase strings, no explanation, no code fences.
+
+Example: query "What changed in AL23?" → ["al23", "amazon linux 2023"]
+Example: query "PSMDB bug fixes" → ["psmdb", "percona server for mongodb", "bug", "fix"]
+
+Query: "${query}"`;
+
+  let res;
+  try {
+    res = await fetch(`${OLLAMA_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -95,13 +146,43 @@ async function summarizeResults(query, results) {
         stream: false,
         messages: [{ role: 'user', content: prompt }],
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.message?.content ?? null;
+  } catch (fetchErr) {
+    const reason = fetchErr?.name === 'TimeoutError'
+      ? `Ollama did not respond within 15 s`
+      : `Could not reach Ollama at ${OLLAMA_URL}: ${fetchErr?.message ?? fetchErr}`;
+    return { keywords: null, keywordsError: reason };
+  }
+
+  if (!res.ok) {
+    return { keywords: null, keywordsError: `Ollama returned HTTP ${res.status} ${res.statusText} (model: ${CHAT_MODEL})` };
+  }
+
+  let data;
+  try {
+    data = await res.json();
   } catch {
-    return null;
+    return { keywords: null, keywordsError: `Ollama response was not valid JSON` };
+  }
+
+  const content = data.message?.content ?? '';
+  const match = content.match(/\[.*?\]/s);
+  if (!match) {
+    return { keywords: null, keywordsError: `Model did not return a JSON array — response: "${content.slice(0, 120)}"` };
+  }
+
+  try {
+    const keywords = JSON.parse(match[0]);
+    if (!Array.isArray(keywords) || keywords.length === 0) {
+      const STOPWORDS = new Set(['what','has','have','is','are','in','on','at','the','a','an','of','to','for','and','or','with','from','that','this','be','been','was','were','changed','added','fixed','new','by','how','why','when','where','which','can','do','did','does']);
+      const fallback = query.trim().toLowerCase().split(/\s+/).filter(t => t.length > 1 && !STOPWORDS.has(t));
+      if (fallback.length) return { keywords: fallback, keywordsError: null };
+      return { keywords: null, keywordsError: `Model returned an empty keyword list` };
+    }
+    return { keywords: keywords.map(k => String(k).toLowerCase()), keywordsError: null };
+  } catch {
+    return { keywords: null, keywordsError: `Could not parse keyword array from model response: "${match[0].slice(0, 80)}"` };
   }
 }
 
@@ -118,12 +199,19 @@ router.post('/', async (req, res) => {
       return res.status(503).json({ error: 'Ollama is not reachable. Vector search is unavailable.' });
     }
     const results = await vectorSearch(collection, query, product);
-    const summary = await summarizeResults(query, results);
-    return res.json({ results, searchType: 'vector', summary });
+    const [{ summary, summaryError }, { keywords, keywordsError }] = await Promise.all([
+      summarizeResults(query, results),
+      extractKeywords(query),
+    ]);
+    return res.json({ results, searchType: 'vector', summary, summaryError, keywords, keywordsError });
   }
 
-  const results = await textSearch(collection, query, product);
-  res.json({ results, searchType: 'text' });
+  const [results, { keywords, keywordsError }] = await Promise.all([
+    textSearch(collection, query, product),
+    extractKeywords(query),
+  ]);
+  const { summary, summaryError } = await summarizeResults(query, results);
+  res.json({ results, searchType: 'text', summary, summaryError, keywords, keywordsError });
 });
 
 export default router;
