@@ -37,6 +37,34 @@
   }
 
   @if (searched() && !loading()) {
+    @if (queries().length) {
+      <div class="mongo-queries">
+        <button class="mongo-queries__toggle" (click)="toggleQueries()" type="button">
+          <span class="mongo-queries__icon">&gt;_</span>
+          MongoDB {{ queries().length === 1 ? 'query' : 'queries' }}
+          <span class="mongo-queries__chevron">{{ queriesOpen() ? '▲' : '▼' }}</span>
+        </button>
+        @if (queriesOpen()) {
+          <div class="mongo-queries__body">
+            <p class="mongo-queries__hint">Copy and paste into <code>mongosh</code> to verify or troubleshoot.</p>
+            @for (q of queries(); track $index) {
+              <div class="mongo-queries__item">
+                <div class="mongo-queries__item-header">
+                  <span class="mongo-queries__label">{{ q.label }}</span>
+                  <button class="mongo-queries__copy" (click)="copyQuery($index)" type="button">
+                    {{ copiedIndex() === $index ? 'Copied!' : 'Copy' }}
+                  </button>
+                </div>
+                @if (q.note) {
+                  <p class="mongo-queries__note">{{ q.note }}</p>
+                }
+                <pre class="mongo-queries__code">{{ q.shell }}</pre>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
     @if (results().length === 0) {
       <p class="search-empty">No results found for "{{ query }}".</p>
     } @else {

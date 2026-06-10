@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { ApiService, ReleaseNote } from '../services/api.service';
+import { ApiService, MongoQuery, ReleaseNote } from '../services/api.service';
 
 const PRODUCTS = [
   'Percona Server for MongoDB',
@@ -32,6 +32,9 @@ export class SearchComponent {
   summaryError = signal<string | null>(null);
   keywords = signal<string[]>([]);
   keywordsError = signal<string | null>(null);
+  queries = signal<MongoQuery[]>([]);
+  queriesOpen = signal(false);
+  copiedIndex = signal<number | null>(null);
 
   activeQuery = signal('');
 
@@ -57,6 +60,8 @@ export class SearchComponent {
     this.summaryError.set(null);
     this.keywords.set([]);
     this.keywordsError.set(null);
+    this.queries.set([]);
+    this.copiedIndex.set(null);
     this.activeQuery.set('');
 
     this.api.search(this.query, this.selectedProduct || undefined, this.searchType).subscribe({
@@ -67,6 +72,7 @@ export class SearchComponent {
         this.summaryError.set(res.summaryError ?? null);
         this.keywords.set(res.keywords ?? []);
         this.keywordsError.set(res.keywordsError ?? null);
+        this.queries.set(res.queries ?? []);
         this.activeQuery.set(this.query);
         this.loading.set(false);
       },
@@ -85,5 +91,20 @@ export class SearchComponent {
 
   toggle(id: string) {
     this.expandedId.set(this.expandedId() === id ? null : id);
+  }
+
+  toggleQueries() {
+    this.queriesOpen.set(!this.queriesOpen());
+  }
+
+  copyQuery(index: number) {
+    const q = this.queries()[index];
+    if (!q) return;
+    navigator.clipboard.writeText(q.shell).then(() => {
+      this.copiedIndex.set(index);
+      setTimeout(() => {
+        if (this.copiedIndex() === index) this.copiedIndex.set(null);
+      }, 2000);
+    });
   }
 }

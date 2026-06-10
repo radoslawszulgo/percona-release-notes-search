@@ -1,50 +1,40 @@
-# Percona Server for MongoDB 8.3 + Percona mongot
+# Percona Server for MongoDB + mongot (Atlas Search)
 #
-# mongot runs as a sidecar container alongside mongod.
-# mongod is told where mongot lives via the searchIndexManagementHostAndPort
-# server parameter; mongot connects back to mongod on port 27017.
+# ┌────────────────────────────┐  gRPC :27028            ┌────────────────────────────┐
+# │  mongod.search-percona     │ ──────────────────────► │  mongot.search-percona     │
+# │  (mongod) :27017           │ ◄── replication sync ── │  query :27028  metrics :9946│
+# └────────────────────────────┘                         └────────────────────────────┘
 #
-# ┌──────────────────┐  searchIndexManagement  ┌──────────────────┐
-# │  percona-mongod  │ ──────────────────────► │  percona-mongot  │
-# │  :27017          │ ◄────── mongot client ── │  :27027          │
-# └──────────────────┘                         └──────────────────┘
+# Prerequisites:
+#   Create the password file (mongotUser's password) and lock it down:
+#     cp pwfile.example pwfile && chmod 600 pwfile
 #
 # Usage:
 #   docker compose -f docker-compose.percona.yml up -d
-#   # MongoDB is available at mongodb://root:password@localhost:27017
 #
 # Development (live reload):
 #   docker compose -f docker-compose.percona.yml watch
-#
-# ── PLACEHOLDERS ──────────────────────────────────────────────────────────────
-# Replace the two PLACEHOLDER values below once the Percona mongot image is
-# published to a registry:
-#
-#   percona-mongot:
-#     image: PLACEHOLDER_REGISTRY/PLACEHOLDER_IMAGE:PLACEHOLDER_TAG
-#
-# Example (adjust to the actual registry/name/tag):
-#   image: percona/percona-mongot:1.0.0
-# ──────────────────────────────────────────────────────────────────────────────
+
+name: rn-search-percona
 
 services:
-  percona-mongod:
-    image: percona/percona-server-mongodb:8.3
-    container_name: percona-rn-search-mongod
-    restart: unless-stopped
-    command:
-      - mongod
-      - "--bind_ip_all"
-      # Tell mongod where mongot is listening (host:port inside the compose network)
-      - "--setParameter"
-      - "searchIndexManagementHostAndPort=percona-mongot:27027"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: password
+  # ── mongod ─────────────────────────────────────────────────────────────────
+  mongod:
+    image: perconalab/percona-server-mongodb:8.3.0-1
+    container_name: mongod-percona
+    hostname: mongod.search-percona
+    entrypoint: ["/bin/bash", "/usr/local/bin/mongod-entrypoint-percona.sh"]
     ports:
       - "27017:27017"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      - percona_data:/data/db
+      - percona_mongod_data:/data/db
+      - ./mongod-percona.conf:/etc/mongod.conf:ro
+      - ./keyfile:/etc/mongod-keyfile:ro
+      - ./mongod-entrypoint-percona.sh:/usr/local/bin/mongod-entrypoint-percona.sh:ro
+    networks:
+      - search-percona
     healthcheck:
       test:
         - CMD
@@ -62,39 +52,61 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    depends_on:
-      percona-mongot:
-        condition: service_started
 
-  percona-mongot:
-    # ── UPDATE THIS IMAGE ONCE THE PERCONA MONGOT IMAGE IS PUBLISHED ──────────
-    image: PLACEHOLDER_REGISTRY/PLACEHOLDER_IMAGE:PLACEHOLDER_TAG
-    # ─────────────────────────────────────────────────────────────────────────
-    container_name: percona-rn-search-mongot
-    restart: unless-stopped
-    environment:
-      # URI mongot uses to connect back to mongod
-      MONGOT_MONGOD_URI: mongodb://root:password@percona-mongod:27017/?authSource=admin
-    ports:
-      # Expose mongot management port for debugging (optional)
-      - "27027:27027"
+  # ── mongot ─────────────────────────────────────────────────────────────────
+  mongot:
+    image: perconalab/percona-server-mongodb-mongot:0.50.0
+    container_name: mongot-percona
+    hostname: mongot.search-percona
+    entrypoint:
+      - /usr/bin/mongot
+      - --config=/mongot-percona/config.default.yml
+      - --internalListAllIndexesForTesting=true
+    user: root
     volumes:
-      - percona_mongot_data:/var/lib/mongot
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:27027/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+      - percona_mongot_data:/data/mongot
+      - ./mongot-percona.conf:/mongot-percona/config.default.yml
+      - ./pwfile:/mongot-percona/pwfile:ro
+      # pwfile MUST be chmod 600 on the host — mongot rejects world-readable files
+    ports:
+      - "27028:27028"  # gRPC query server
+      - "9946:9946"    # Metrics
+      # healthCheck :8080 is internal only — not exposed to avoid conflict with the app container
+    networks:
+      - search-percona
+    depends_on:
+      - mongod
+
+  # Creates the search indexes the API expects, once mongod + mongot are up
+  search-init:
+    image: perconalab/percona-server-mongodb:8.3.0-1
+    container_name: search-init-percona
+    entrypoint: ["/bin/bash", "/init-search-indexes-percona.sh"]
+    volumes:
+      - ./init-search-indexes-percona.sh:/init-search-indexes-percona.sh:ro
+    networks:
+      - search-percona
+    depends_on:
+      mongod:
+        condition: service_healthy
+      mongot:
+        condition: service_started
+    restart: "no"
 
   # ── Ollama (embedding model) ────────────────────────────────────────────────
   ollama:
     image: ollama/ollama:latest
     container_name: ollama-percona
+    environment:
+      # Keep models loaded in memory indefinitely — reloading llama3.2 on a
+      # cold search takes ~60s and times out the frontend
+      OLLAMA_KEEP_ALIVE: -1
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    networks:
+      - search-percona
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s
@@ -108,24 +120,64 @@ services:
     container_name: ollama-init-percona
     environment:
       OLLAMA_HOST: http://ollama:11434
+    networks:
+      - search-percona
     depends_on:
       ollama:
         condition: service_healthy
-    entrypoint: ["/bin/sh", "-c", "ollama pull nomic-embed-text && ollama pull llama3.2"]
+    # The trailing `ollama run` warms llama3.2 into memory so the first search
+    # doesn't stall on model load
+    entrypoint: ["/bin/sh", "-c", "ollama pull nomic-embed-text && ollama pull llama3.2:1b && ollama run llama3.2:1b 'Reply with OK'"]
     restart: "no"
 
-  # ── Frontend ───────────────────────────────────────────────────────────────
+  # ── Backend API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./server
+    container_name: percona-rn-search-api-percona
+    restart: unless-stopped
+    environment:
+      MONGODB_URI: mongodb://root:password@mongod.search-percona:27017
+      MONGODB_DB: release_notes
+      MONGODB_COLLECTION: documents
+      PORT: "3000"
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_EMBED_MODEL: nomic-embed-text
+      OLLAMA_CHAT_MODEL: llama3.2:1b
+    ports:
+      - "3000:3000"
+    networks:
+      - search-percona
+    depends_on:
+      mongod:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    develop:
+      watch:
+        # Sync source files into the running container; the process restarts automatically.
+        - action: sync+restart
+          path: ./server/src
+          target: /app/src
+        # Rebuild the image when dependencies change.
+        - action: rebuild
+          path: ./server/package.json
+
+  # ── Frontend ────────────────────────────────────────────────────────────────
   app:
     build:
       context: .
-    container_name: percona-rn-search-app
+    container_name: percona-rn-search-app-percona
     restart: unless-stopped
     ports:
       - "8080:80"
+    networks:
+      - search-percona
     depends_on:
       - api
     develop:
       watch:
+        # Angular must be compiled — rebuild the image on any source change.
         - action: rebuild
           path: ./src
         - action: rebuild
@@ -135,36 +187,11 @@ services:
         - action: rebuild
           path: ./package.json
 
-  # ── Backend API ────────────────────────────────────────────────────────────
-  api:
-    build:
-      context: ./server
-    container_name: percona-rn-search-api
-    restart: unless-stopped
-    environment:
-      MONGODB_URI: mongodb://root:password@percona-mongod:27017
-      MONGODB_DB: release_notes
-      MONGODB_COLLECTION: documents
-      PORT: "3000"
-      OLLAMA_URL: http://ollama:11434
-      OLLAMA_EMBED_MODEL: nomic-embed-text
-      OLLAMA_CHAT_MODEL: llama3.2
-    ports:
-      - "3000:3000"
-    depends_on:
-      percona-mongod:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
-    develop:
-      watch:
-        - action: sync+restart
-          path: ./server/src
-          target: /app/src
-        - action: rebuild
-          path: ./server/package.json
-
 volumes:
-  percona_data:
+  percona_mongod_data:
   percona_mongot_data:
   ollama_data:
+
+networks:
+  search-percona:
+    name: search-percona

@@ -230,6 +230,123 @@
   }
 }
 
+.mongo-queries {
+  margin-top: 1.25rem;
+  border: 1.5px solid $color-border;
+  border-radius: 10px;
+  background: $color-surface;
+  overflow: hidden;
+
+  &__toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $color-text-muted;
+
+    &:hover {
+      background: rgba($color-primary, 0.04);
+      color: $color-text;
+    }
+  }
+
+  &__icon {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: $color-primary;
+  }
+
+  &__chevron {
+    margin-left: auto;
+    font-size: 0.7rem;
+  }
+
+  &__body {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid $color-border;
+  }
+
+  &__hint {
+    margin: 0.75rem 0;
+    font-size: 0.8rem;
+    color: $color-text-muted;
+
+    code {
+      font-family: monospace;
+      background: rgba($color-primary, 0.08);
+      color: $color-primary;
+      padding: 0.05rem 0.3rem;
+      border-radius: 4px;
+    }
+  }
+
+  &__item + &__item {
+    margin-top: 1rem;
+  }
+
+  &__item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+  }
+
+  &__label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: $color-text;
+  }
+
+  &__copy {
+    padding: 0.25rem 0.75rem;
+    background: rgba($color-primary, 0.1);
+    color: $color-primary;
+    border: 1px solid rgba($color-primary, 0.3);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+
+    &:hover {
+      background: rgba($color-primary, 0.2);
+    }
+  }
+
+  &__note {
+    margin: 0 0 0.4rem;
+    font-size: 0.75rem;
+    font-style: italic;
+    color: $color-text-muted;
+  }
+
+  &__code {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid $color-border;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.35);
+    color: $color-text;
+    font-family: monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    max-height: 320px;
+    overflow: auto;
+    white-space: pre;
+  }
+}
+
 .results-list {
   list-style: none;
   margin: 1rem 0 0;

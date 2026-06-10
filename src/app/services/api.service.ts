@@ -16,6 +16,12 @@ export interface ReleaseNote {
   score?: number;
 }
 
+export interface MongoQuery {
+  label: string;
+  shell: string;
+  note?: string;
+}
+
 export interface SearchResponse {
   results: ReleaseNote[];
   searchType?: 'text' | 'vector';
@@ -23,6 +29,7 @@ export interface SearchResponse {
   summaryError?: string;
   keywords?: string[];
   keywordsError?: string;
+  queries?: MongoQuery[];
 }
 
 export interface EmbeddingStatus {
